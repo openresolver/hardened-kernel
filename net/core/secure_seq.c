@@ -15,6 +15,9 @@
 #include <linux/siphash.h>
 #include <net/secure_seq.h>
 
+/* Global toggle for random TCP ISN generation; default off */
+int sysctl_tcp_random_isn __read_mostly;
+
 #if IS_ENABLED(CONFIG_IPV6) || IS_ENABLED(CONFIG_INET)
 #include <linux/in6.h>
 #include <net/tcp.h>
@@ -73,7 +76,7 @@ u32 secure_tcpv6_ts_off(const struct net *net,
 }
 EXPORT_IPV6_MOD(secure_tcpv6_ts_off);
 
-u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
+noinline u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
 		     __be16 sport, __be16 dport)
 {
 	const struct {
@@ -89,9 +92,15 @@ u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
 	};
 	u32 hash;
 
+	if (READ_ONCE(sysctl_tcp_random_isn)) {
+		get_random_bytes(((char *)&hash), sizeof(u32));
+		return hash;
+	}
+
 	net_secret_init();
 	hash = siphash(&combined, offsetofend(typeof(combined), dport),
 		       &net_secret);
+
 	return seq_scale(hash);
 }
 EXPORT_SYMBOL(secure_tcpv6_seq);
@@ -133,10 +142,15 @@ u32 secure_tcp_ts_off(const struct net *net, __be32 saddr, __be32 daddr)
  * it would be easy enough to have the former function use siphash_4u32, passing
  * the arguments as separate u32.
  */
-u32 secure_tcp_seq(__be32 saddr, __be32 daddr,
+noinline u32 secure_tcp_seq(__be32 saddr, __be32 daddr,
 		   __be16 sport, __be16 dport)
 {
 	u32 hash;
+
+	if (READ_ONCE(sysctl_tcp_random_isn)) {
+	get_random_bytes(((char *)&hash), sizeof(u32));
+	return hash;
+	}
 
 	net_secret_init();
 	hash = siphash_3u32((__force u32)saddr, (__force u32)daddr,
