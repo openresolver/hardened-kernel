@@ -1,3 +1,11 @@
+---
+Note: This repository mirrors the stable upstream Linux kernel
+Additional branches and configuration files are provided for servers and desktops.
+Upstream sources remain unmodified in the clean-upstream branch.
+---
+All releases are signed with a subkey certified bu the project's primary signing key. Users should verify the primary key fingerprint before trusting any signatu
+---
+
 Linux kernel
 ============
 
